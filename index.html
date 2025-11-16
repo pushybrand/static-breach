@@ -294,6 +294,7 @@
         textFont(pixelFont);
         textStyle(NORMAL);
         textAlign(CENTER, CENTER);
+        textSize(16); // Reduced font size for buttons
         text(this.text, this.x + this.width / 2, this.y + this.height / 2);
       }
 
@@ -493,12 +494,22 @@
       textSize(28);
       fill(WHITE);
       textAlign(RIGHT, TOP);
-      text(`Chrono: ${game.chrono}`, RIGHT_COL_X + BUTTON_WIDTH - 30, 60);
+      let chrono_text = `Chrono: ${game.chrono}`;
+      let chrono_width = textWidth(chrono_text);
+      fill(BLACK);
+      rect(RIGHT_COL_X + BUTTON_WIDTH - 30 - chrono_width - 10, 60 - 5, chrono_width + 20, 28 + 10, 5);
+      fill(WHITE);
+      text(chrono_text, RIGHT_COL_X + BUTTON_WIDTH - 30, 60);
 
       // --- Lore Counter ---
       textAlign(CENTER, TOP);
       fill(YELLOW);
-      text(`Lore: ${game.lore}`, GRID_CENTER_X, 60);
+      let lore_text = `Lore: ${game.lore}`;
+      let lore_width = textWidth(lore_text);
+      fill(BLACK);
+      rect(GRID_CENTER_X - (lore_width / 2) - 10, 60 - 5, lore_width + 20, 28 + 10, 5);
+      fill(YELLOW);
+      text(lore_text, GRID_CENTER_X, 60);
 
       // --- Left Column: Abilities ---
       reroll1_button.draw(game.chrono < 1 || !game.rolled || game_over);
