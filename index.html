@@ -465,6 +465,7 @@
       const RIGHT_COL_X = GRID_X + GRID_WIDTH_PX + (GRID_X - BUTTON_WIDTH) / 2;
       
       // --- Signal Strength Bar ---
+      textFont(pixelFont); // Use pixel font for SIGNAL STRENGTH
       textStyle(NORMAL);
       textSize(24);
       fill(BLACK);
@@ -492,6 +493,7 @@
       }
 
       // --- Chrono Box ---
+      textFont(pixelFont); // Use pixel font for Chrono
       textSize(28);
       fill(WHITE);
       textAlign(RIGHT, TOP);
