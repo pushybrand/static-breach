@@ -395,7 +395,7 @@
           if (!game.breached[row][col] && (row !== exit_pos[0] || col !== exit_pos[1])) {
             textAlign(CENTER, CENTER);
             textFont('Courier New'); // Changed to a digital-style font (monospace, bold)
-            textStyle(NORMAL); // Changed to normal (not bold)
+            textStyle(BOLD); // Changed to normal (not bold)
             textSize(24); // Slightly larger for readability
             fill(WHITE);
             text(game.grid[row][col], x + TILE_SIZE / 2, y + TILE_SIZE / 2);
@@ -639,3 +639,4 @@
   </script>
 </body>
 </html>
+
