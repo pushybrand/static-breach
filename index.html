@@ -1,567 +1,644 @@
+<!DOCTYPE html>
 <html>
 <head>
-<title>Static Breach</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
-<style>
-html, body {
-margin: 0;
-padding: 0;
-width: 100%;
-height: 100vh;
-overflow: hidden;
-background-color: #000;
-display: flex;
-justify-content: center;
-align-items: center;
-}
-canvas {
-display: block;
-}
-</style>
+  <title>Static Breach</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100vh;
+      overflow: hidden;
+      background-color: #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    canvas {
+      display: block;
+    }
+  </style>
 </head>
 <body>
-<script>
-// --- GLOBAL VARIABLES ---
-let game;
-let game_over = false;
-// UI and Layout
-const SCREEN_WIDTH = 800;
-const SCREEN_HEIGHT = 800;
-const GRID_SIZE = 4;
-const TILE_SIZE = 100;
-const GRID_X = (SCREEN_WIDTH - GRID_SIZE * TILE_SIZE) / 2;
-const GRID_Y = 120;
-const GRID_WIDTH_PX = GRID_SIZE * TILE_SIZE;
-const GRID_HEIGHT_PX = GRID_SIZE * TILE_SIZE;
-const GRID_CENTER_X = GRID_X + (GRID_WIDTH_PX / 2);
-// Player and Exit
-let player_pos = [3, 0];
-const exit_pos = [0, 3];
-const DICE_FACES = ['1', '2', '3', 'GLITCH', 'BREACH', 'CHRONO'];
-// Buttons
-let reroll1_button, reroll2_button, overload_button, skip_button;
-let roll_button_rect, resolve_button, restart_text_rect;
-let roll_button_pressed = false;
-// Assets
-let background_image, red_tile_img, purple_tile_img, player_tile_img;
-let lore_img, roll_button_img, roll_pressed_img;
-let pixelFont, digitalFont;
-// Colors
-const BLACK = [0, 0, 0];
-const WHITE = [255, 255, 255];
-const RED = [255, 0, 0];
-const GRAY = [128, 128, 128];
-const DARK_GRAY = [50, 50, 50];
-const YELLOW = [255, 193, 7];
-const LOG_GREEN = [0, 255, 0];
-const GREEN = [40, 167, 69];
-// --- NEW: Helper function to shuffle an array ---
-function shuffleArray(array) {
-for (let i = array.length - 1; i > 0; i--) {
-const j = Math.floor(Math.random() * (i + 1));
-[array[i], array[j]] = [array[j], array[i]];
-}
-return array;
-}
-// --- Game Class ---
-class Game {
-constructor() {
-this.signal_strength = 7;
-this.chrono = 0;
-this.lore = 0;
-this.game_state = 'playing'; // 'playing', 'lore_animation', 'win_animation', 'lose_animation', 'game_over'
-this.animation_start_time = 0;
-this.animation_delay = 50;
-this.animation_step = 0;
-this.lore_animation_pos = null;
-this.lore_locations = [];
-let possible_tiles = [];
-for (let r = 0; r < GRID_SIZE; r++) {
-for (let c = 0; c < GRID_SIZE; c++) {
-if (r !== player_pos[0] || c !== player_pos[1]) {
-if (r !== exit_pos[0] || c !== exit_pos[1]) {
-possible_tiles.push([r, c]);
-}
-}
-}
-}
-let num_lore = Math.floor(Math.random() * 5); // 0-4
-this.lore_locations = shuffleArray(possible_tiles).slice(0, num_lore);
-this.fill_order = [];
-for (let r = 0; r < GRID_SIZE; r++) {
-for (let c = 0; c < GRID_SIZE; c++) {
-this.fill_order.push([r, c]);
-}
-}
-shuffleArray(this.fill_order);
-this.grid = [[3, 3, 7, 6], [6, 3, 4, 5], [6, 5, 5, 7], [6, 5, 5, 4]];
-this.breached = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(false));
-this.breached[player_pos[0]][player_pos[1]] = true;
-this.selected_tile = null;
-this.dice_results = [null, null];
-this.total_strength = 0;
-this.rolled = false;
-this.log = ["Game started. Select an adjacent tile and roll!"];
-}
-is_adjacent(row, col) {
-const [pr, pc] = player_pos;
-return (Math.abs(row - pr) + Math.abs(col - pc) === 1) && !this.breached[row][col];
-}
-roll_dice() {
-this.dice_results = [DICE_FACES[Math.floor(Math.random() * DICE_FACES.length)], DICE_FACES[Math.floor(Math.random() * DICE_FACES.length)]];
-this.total_strength = 0;
-let glitch_count = 0;
-let chrono_count = 0;
-let breach_count = 0;
-for (const die of this.dice_results) {
-if (['1', '2', '3'].includes(die)) {
-this.total_strength += parseInt(die);
-} else if (die === 'BREACH') {
-breach_count += 1;
-} else if (die === 'GLITCH') {
-glitch_count += 1;
-} else if (die === 'CHRONO') {
-chrono_count += 1;
-}
-}
-this.total_strength += breach_count * 3;
-this.signal_strength -= glitch_count;
-this.chrono += chrono_count;
-if (glitch_count > 0) this.log.push(Glitch! Lost ${glitch_count} health.);
-if (chrono_count > 0) this.log.push(Gained ${chrono_count} Chrono.);
-this.rolled = true;
-}
-use_rewind(die_index) {
-if (this.chrono >= 1 && this.rolled) {
-this.chrono -= 1;
-let old_die = this.dice_results[die_index];
-if (['1', '2', '3'].includes(old_die)) {
-this.total_strength -= parseInt(old_die);
-} else if (old_die === 'BREACH') {
-this.total_strength -= 3;
-}
-let new_die = DICE_FACES[Math.floor(Math.random() * DICE_FACES.length)];
-this.dice_results[die_index] = new_die;
-if (['1', '2', '3'].includes(new_die)) {
-this.total_strength += parseInt(new_die);
-} else if (new_die === 'BREACH') {
-this.total_strength += 3;
-} else if (new_die === 'GLITCH') {
-this.signal_strength -= 1;
-this.log.push("Rewound into a Glitch! -1 health.");
-} else if (new_die === 'CHRONO') {
-this.chrono += 1;
-this.log.push("Rewound into Chrono! +1 Chrono.");
-}
-this.log.push(RE ROLLED die ${die_index + 1} to ${new_die}.);
-return true;
-}
-return false;
-}
-use_overload() {
-if (this.chrono >= 2 && this.rolled) {
-this.chrono -= 2;
-this.total_strength += 1;
-this.log.push("Overloaded: +1 strength.");
-return true;
-}
-return false;
-}
-use_skip() {
-if (this.chrono >= 3 && this.selected_tile) {
-this.chrono -= 3;
-const [row, col] = this.selected_tile;
-this.breached[row][col] = true;
-if (this.lore_locations.some(loc => loc[0] === row && loc[1] === col)) {
-this.game_state = 'lore_animation';
-this.animation_start_time = millis();
-this.lore_animation_pos = [row, col];
-this.log.push("LORE FOUND!");
-this.lore_locations = this.lore_locations.filter(loc => loc[0] !== row || loc[1] !== col);
-} else {
-player_pos = [row, col];
-}
-this.log.push("Skipped: Auto-breached tile.");
-this.selected_tile = null;
-this.rolled = false;
-return true;
-}
-return false;
-}
-resolve_breach() {
-if (this.selected_tile && this.rolled) {
-const [row, col] = this.selected_tile;
-const shield = this.grid[row][col];
-if (this.total_strength >= shield) {
-this.breached[row][col] = true;
-if (this.lore_locations.some(loc => loc[0] === row && loc[1] === col)) {
-this.game_state = 'lore_animation';
-this.animation_start_time = millis();
-this.lore_animation_pos = [row, col];
-this.log.push("LORE FOUND!");
-this.lore_locations = this.lore_locations.filter(loc => loc[0] !== row || loc[1] !== col);
-} else {
-player_pos = [row, col];
-}
-this.log.push(Success! Breached shield ${shield} with ${this.total_strength}.);
-} else {
-this.signal_strength -= 1;
-this.log.push(Failure. Lost 1 health. Needed ${shield}, had ${this.total_strength}.);
-}
-this.selected_tile = null;
-this.rolled = false;
-this.dice_results = [null, null];
-if (this.game_state === 'playing') {
-this.check_lose();
-}
-}
-}
-win_game() {
-player_pos = [...exit_pos];
-this.game_state = 'win_animation';
-this.animation_start_time = millis();
-this.log = ["SIGNAL BREACH SUCCESS!"];
-}
-check_lose() {
-if (this.signal_strength <= 0) {
-this.game_state = 'lose_animation';
-this.animation_start_time = millis();
-this.animation_step = 0;
-this.log = ["GAME OVER!"];
-return true;
-}
-return false;
-}
-}
-// --- Button Class ---
-class Button {
-constructor(x, y, width, height, text, color, text_color) {
-this.x = x;
-this.y = y;
-this.width = width;
-this.height = height;
-this.text = text;
-this.color = color;
-this.base_color = color;
-this.disabled_color = DARK_GRAY;
-this.text_color = text_color;
-}
-draw(disabled = false) {
-let current_color = disabled ? this.disabled_color : this.base_color;
-fill(current_color);
-noStroke();
-rect(this.x, this.y, this.width, this.height, 5);
-let text_color_to_use = (this.text_color === WHITE) ? WHITE : (disabled ? GRAY : this.text_color);
-fill(text_color_to_use);
-textFont(pixelFont);
-textStyle(NORMAL);
-textAlign(CENTER, CENTER);
-textSize(16); // Reduced font size for buttons
-text(this.text, this.x + this.width / 2, this.y + this.height / 2);
-}
-is_clicked(px, py) {
-return px > this.x && px < this.x + this.width &&
-py > this.y && py < this.y + this.height;
-}
-}
-// --- p5.js Main Functions ---
-function preload() {
-// Load all assets
-background_image = loadImage("assets/background.png");
-red_tile_img = loadImage("assets/red_tile.png");
-purple_tile_img = loadImage("assets/purple_tile.png");
-player_tile_img = loadImage("assets/player_tile.png");
-lore_img = loadImage("assets/lore.png");
-roll_button_img = loadImage("assets/roll.png");
-roll_pressed_img = loadImage("assets/roll_pressed.png");
-pixelFont = loadFont("assets/Pixele_Unique.ttf");
-digitalFont = loadFont("assets/DS-DIGIB.TTF");
-}
-function setup() {
-createCanvas(SCREEN_WIDTH, SCREEN_HEIGHT);
-textFont(pixelFont);
-game = new Game();
-// UI Layout Constants
-const BUTTON_WIDTH = 140;
-const BUTTON_HEIGHT = 45;
-const LEFT_COL_X = (GRID_X - BUTTON_WIDTH) / 2;
-const LEFT_COL_Y_START = 300;
-const Y_SPACING = 60;
-const RIGHT_COL_X = GRID_X + GRID_WIDTH_PX + (GRID_X - BUTTON_WIDTH) / 2;
-// Create Buttons
-reroll1_button = new Button(LEFT_COL_X, LEFT_COL_Y_START, BUTTON_WIDTH, BUTTON_HEIGHT, "RE ROLL 1 (1C)", YELLOW, WHITE);
-reroll2_button = new Button(LEFT_COL_X, LEFT_COL_Y_START + Y_SPACING, BUTTON_WIDTH, BUTTON_HEIGHT, "RE ROLL 2 (1C)", YELLOW, WHITE);
-overload_button = new Button(LEFT_COL_X, LEFT_COL_Y_START + (2 * Y_SPACING), BUTTON_WIDTH, BUTTON_HEIGHT, "OVERLOAD (2C)", YELLOW, WHITE);
-skip_button = new Button(LEFT_COL_X, LEFT_COL_Y_START + (3 * Y_SPACING), BUTTON_WIDTH, BUTTON_HEIGHT, "SKIP (3C)", YELLOW, WHITE);
-roll_button_rect = { x: RIGHT_COL_X, y: 330, width: 140, height: 50 };
-resolve_button = new Button(RIGHT_COL_X, 330 + Y_SPACING, BUTTON_WIDTH, BUTTON_HEIGHT, "RESOLVE", GREEN, WHITE);
-}
-function draw() {
-let current_time = millis();
-// --- Handle Animation Timers ---
-if (game.game_state === 'lore_animation') {
-if (current_time - game.animation_start_time > 3000) {
-game.game_state = 'playing';
-player_pos = game.lore_animation_pos;
-game.lore += 1;
-game.lore_animation_pos = null;
-}
-} else if (game.game_state === 'win_animation') {
-if (current_time - game.animation_start_time > 3000) {
-game.game_state = 'game_over';
-}
-} else if (game.game_state === 'lose_animation') {
-if (game.animation_step < (GRID_SIZE * GRID_SIZE)) {
-if (current_time - game.animation_start_time > game.animation_delay) {
-game.animation_step += 1;
-game.animation_start_time = current_time;
-}
-} else {
-if (current_time - game.animation_start_time > 2000) {
-game.game_state = 'game_over';
-}
-}
-}
-game_over = ['win_animation', 'lose_animation', 'game_over'].includes(game.game_state);
-image(background_image, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
-// --- Draw grid ---
-for (let row = 0; row < GRID_SIZE; row++) {
-for (let col = 0; col < GRID_SIZE; col++) {
-let x = GRID_X + col * TILE_SIZE;
-let y = GRID_Y + row * TILE_SIZE;
-if (row === exit_pos[0] && col === exit_pos[1]) {
-image(red_tile_img, x, y, TILE_SIZE, TILE_SIZE);
-} else if (row === player_pos[0] && col === player_pos[1]) {
-image(player_tile_img, x, y, TILE_SIZE, TILE_SIZE);
-} else if (game.breached[row][col]) {
-fill(BLACK);
-noStroke();
-rect(x, y, TILE_SIZE, TILE_SIZE);
-} else {
-image(purple_tile_img, x, y, TILE_SIZE, TILE_SIZE);
-}
-if (!game.breached[row][col] && (row !== exit_pos[0] || col !== exit_pos[1])) {
-textAlign(CENTER, CENTER);
-textFont(digitalFont);
-textStyle(NORMAL);
-textSize(24);
-fill(WHITE);
-text(game.grid[row][col], x + TILE_SIZE / 2, y + TILE_SIZE / 2);
-}
-stroke(WHITE);
-strokeWeight(2);
-noFill();
-rect(x, y, TILE_SIZE, TILE_SIZE);
-}
-}
-// --- END grid ---
-// --- Animation Overlay Layer ---
-if (game.game_state === 'lore_animation') {
-let flash_on = Math.floor(current_time / 250) % 2 === 0;
-let x = GRID_X + game.lore_animation_pos[1] * TILE_SIZE;
-let y = GRID_Y + game.lore_animation_pos[0] * TILE_SIZE;
-if (flash_on) {
-image(lore_img, x, y, TILE_SIZE, TILE_SIZE);
-} else {
-image(player_tile_img, x, y, TILE_SIZE, TILE_SIZE);
-}
-} else if (game.game_state === 'win_animation') {
-let flash_on = Math.floor(current_time / 250) % 2 === 0;
-let x = GRID_X + exit_pos[1] * TILE_SIZE;
-let y = GRID_Y + exit_pos[0] * TILE_SIZE;
-if (flash_on) {
-image(player_tile_img, x, y, TILE_SIZE, TILE_SIZE);
-} else {
-image(red_tile_img, x, y, TILE_SIZE, TILE_SIZE);
-}
-} else if (game.game_state === 'lose_animation') {
-for (let i = 0; i < game.animation_step; i++) {
-const [r, c] = game.fill_order[i];
-let x = GRID_X + c * TILE_SIZE;
-let y = GRID_Y + r * TILE_SIZE;
-image(red_tile_img, x, y, TILE_SIZE, TILE_SIZE);
-}
-if (game.animation_step >= (GRID_SIZE * GRID_SIZE)) {
-let flash_on = Math.floor(current_time / 250) % 2 === 0;
-if (flash_on) {
-fill(255, 0, 0, 128); // Semi-transparent red
-noStroke();
-rect(GRID_X, GRID_Y, GRID_WIDTH_PX, GRID_HEIGHT_PX);
-}
-}
-}
-// --- END Animation Layer ---
-// Draw selected tile highlight
-if (game.selected_tile) {
-const [row, col] = game.selected_tile;
-let x = GRID_X + col * TILE_SIZE;
-let y = GRID_Y + row * TILE_SIZE;
-stroke(YELLOW);
-strokeWeight(4);
-noFill();
-rect(x, y, TILE_SIZE, TILE_SIZE);
-}
-// --- Draw UI ---
-const BUTTON_WIDTH = 140;
-const LEFT_COL_X = (GRID_X - BUTTON_WIDTH) / 2;
-const RIGHT_COL_X = GRID_X + GRID_WIDTH_PX + (GRID_X - BUTTON_WIDTH) / 2;
-// --- Signal Strength Bar ---
-textFont(pixelFont); // Use pixel font for SIGNAL STRENGTH
-textStyle(NORMAL);
-textSize(24);
-fill(BLACK);
-textAlign(LEFT, TOP);
-let health_title_x = LEFT_COL_X + 20;
-text("SIGNAL STRENGTH", health_title_x, 50);
-const SQUARE_SIZE = 15;
-const PADDING = 5;
-const MAX_HEALTH = 7;
-let BAR_START_X = health_title_x;
-let BAR_START_Y = 50 + 24 + 5;
-let BAR_HEIGHT = SQUARE_SIZE + (PADDING * 2);
-let BAR_WIDTH = (MAX_HEALTH * (SQUARE_SIZE + PADDING)) + PADDING;
-fill(BLACK);
-noStroke();
-rect(BAR_START_X, BAR_START_Y, BAR_WIDTH, BAR_HEIGHT, 5);
-fill(RED);
-for (let i = 0; i < game.signal_strength; i++) {
-let sq_x = BAR_START_X + PADDING + i * (SQUARE_SIZE + PADDING);
-let sq_y = BAR_START_Y + PADDING;
-rect(sq_x, sq_y, SQUARE_SIZE, SQUARE_SIZE);
-}
-// --- Chrono Box ---
-textFont(digitalFont); // Use digital font for Chrono
-textSize(28);
-fill(WHITE);
-textAlign(RIGHT, TOP);
-let chrono_text = Chrono: ${game.chrono};
-let chrono_width = textWidth(chrono_text);
-fill(BLACK);
-rect(RIGHT_COL_X + BUTTON_WIDTH - 30 - chrono_width - 10, 60 - 5, chrono_width + 20, 28 + 10, 5);
-fill(WHITE);
-text(chrono_text, RIGHT_COL_X + BUTTON_WIDTH - 30, 60);
-// --- Lore Counter ---
-textAlign(CENTER, TOP);
-fill(YELLOW);
-let lore_text = Lore: ${game.lore};
-let lore_width = textWidth(lore_text);
-fill(BLACK);
-rect(GRID_CENTER_X - (lore_width / 2) - 10, 60 - 5, lore_width + 20, 28 + 10, 5);
-fill(YELLOW);
-text(lore_text, GRID_CENTER_X, 60);
-// --- Left Column: Abilities ---
-reroll1_button.draw(game.chrono < 1 || !game.rolled || game_over);
-reroll2_button.draw(game.chrono < 1 || !game.rolled || game_over);
-overload_button.draw(game.chrono < 2 || !game.rolled || game_over);
-skip_button.draw(game.chrono < 3 || !game.selected_tile || game.rolled || game_over);
-// --- Right Column: Dice & Actions ---
-fill(BLACK);
-rect(RIGHT_COL_X - 10, 145, BUTTON_WIDTH + 20, 175, 5);
-fill(WHITE);
-textSize(24);
-textAlign(LEFT, TOP);
-text("Dice Results", RIGHT_COL_X, 150);
-textSize(18);
-text("DICE 1", RIGHT_COL_X, 180);
-text("DICE 2", RIGHT_COL_X, 230);
-textFont(digitalFont); // Use digital font for dice numbers and strength
-textSize(28);
-text(game.dice_results[0] || "--", RIGHT_COL_X + 20, 200);
-text(game.dice_results[1] || "--", RIGHT_COL_X + 20, 250);
-text(Strength: ${game.total_strength}, RIGHT_COL_X, 280);
-textFont(pixelFont); // Reset to pixel font
-// Roll/Resolve buttons
-let roll_disabled = !game.selected_tile || game.rolled || game_over;
-if (!roll_disabled && roll_button_pressed) {
-image(roll_pressed_img, roll_button_rect.x, roll_button_rect.y);
-} else {
-image(roll_button_img, roll_button_rect.x, roll_button_rect.y);
-}
-resolve_button.draw(!game.rolled || game_over);
-// --- Log Box ---
-let log_y_start = 580;
-let log_line_height = 22;
-let num_log_lines = 5;
-let num_visual_lines = 6;
-let log_box_width = 500;
-let log_box_height = (num_visual_lines * log_line_height) + 10;
-let log_box_x = GRID_CENTER_X - (log_box_width / 2);
-let log_box_y = log_y_start - 5;
-fill(BLACK);
-rect(log_box_x, log_box_y, log_box_width, log_box_height, 5);
-if (game_over) {
-textSize(48);
-fill(LOG_GREEN);
-textAlign(CENTER, TOP);
-text(game.log[0], GRID_CENTER_X, log_y_start + 30);
-textSize(18);
-let restart_y = log_y_start + log_box_height - log_line_height - 5;
-text("RESTART GAME", GRID_CENTER_X, restart_y);
-restart_text_rect = {x: GRID_CENTER_X - 70, y: restart_y, width: 140, height: 20}; // Approx for click detection
-} else {
-let log_y = log_y_start;
-textSize(18);
-fill(LOG_GREEN);
-textAlign(CENTER, TOP);
-for (let msg of game.log.slice(-num_log_lines)) {
-text(msg, GRID_CENTER_X, log_y);
-log_y += log_line_height;
-}
-}
-}
-function mousePressed() {
-if (game_over && restart_text_rect && mouseX > restart_text_rect.x && mouseX < restart_text_rect.x + restart_text_rect.width &&
-mouseY > restart_text_rect.y && mouseY < restart_text_rect.y + restart_text_rect.height) {
-player_pos = [3, 0];
-game = new Game();
-return;
-}
-if (game.game_state !== 'playing' && game.game_state !== 'game_over') return;
-if (!game_over) {
-if (mouseX >= GRID_X && mouseX < GRID_X + GRID_WIDTH_PX && mouseY >= GRID_Y && mouseY < GRID_Y + GRID_HEIGHT_PX) {
-let col = Math.floor((mouseX - GRID_X) / TILE_SIZE);
-let row = Math.floor((mouseY - GRID_Y) / TILE_SIZE);
-if (row === exit_pos[0] && col === exit_pos[1]) {
-let [pr, pc] = player_pos;
-if (Math.abs(row - pr) + Math.abs(col - pc) === 1) {
-game.win_game();
-return;
-}
-}
-if (game.is_adjacent(row, col)) {
-game.selected_tile = [row, col];
-game.log.push(Selected tile (${row}, ${col}) with shield ${game.grid[row][col]});
-}
-} else {
-let roll_disabled = !game.selected_tile || game.rolled || game_over;
-if (!roll_disabled && mouseX > roll_button_rect.x && mouseX < roll_button_rect.x + roll_button_rect.width &&
-mouseY > roll_button_rect.y && mouseY < roll_button_rect.y + roll_button_rect.height) {
-roll_button_pressed = true;
-} else if (game.rolled && resolve_button.is_clicked(mouseX, mouseY)) {
-game.resolve_breach();
-} else if (reroll1_button.is_clicked(mouseX, mouseY)) {
-game.use_rewind(0);
-} else if (reroll2_button.is_clicked(mouseX, mouseY)) {
-game.use_rewind(1);
-} else if (overload_button.is_clicked(mouseX, mouseY)) {
-game.use_overload();
-} else if (!game.rolled && skip_button.is_clicked(mouseX, mouseY) && game.selected_tile) {
-game.use_skip();
-}
-}
-}
-}
-function mouseReleased() {
-if (game.game_state === 'playing' && !game_over) {
-if (roll_button_pressed) {
-roll_button_pressed = false;
-if (mouseX > roll_button_rect.x && mouseX < roll_button_rect.x + roll_button_rect.width &&
-mouseY > roll_button_rect.y && mouseY < roll_button_rect.y + roll_button_rect.height) {
-game.roll_dice();
-}
-}
-}
-}
-</script>
+  <script>
+    // --- GLOBAL VARIABLES ---
+    let game;
+    let game_over = false;
+
+    // UI and Layout
+    const SCREEN_WIDTH = 800;
+    const SCREEN_HEIGHT = 800;
+    const GRID_SIZE = 4;
+    const TILE_SIZE = 100;
+    const GRID_X = (SCREEN_WIDTH - GRID_SIZE * TILE_SIZE) / 2;
+    const GRID_Y = 120;
+    const GRID_WIDTH_PX = GRID_SIZE * TILE_SIZE;
+    const GRID_HEIGHT_PX = GRID_SIZE * TILE_SIZE;
+    const GRID_CENTER_X = GRID_X + (GRID_WIDTH_PX / 2);
+    
+    // Player and Exit
+    let player_pos = [3, 0];
+    const exit_pos = [0, 3];
+    const DICE_FACES = ['1', '2', '3', 'GLITCH', 'BREACH', 'CHRONO'];
+    
+    // Buttons
+    let reroll1_button, reroll2_button, overload_button, skip_button;
+    let roll_button_rect, resolve_button, restart_text_rect;
+    let roll_button_pressed = false;
+
+    // Assets
+    let background_image, red_tile_img, purple_tile_img, player_tile_img;
+    let lore_img, roll_button_img, roll_pressed_img;
+    let pixelFont, digitalFont;
+    
+    // Colors
+    const BLACK = [0, 0, 0];
+    const WHITE = [255, 255, 255];
+    const RED = [255, 0, 0];
+    const GRAY = [128, 128, 128];
+    const DARK_GRAY = [50, 50, 50];
+    const YELLOW = [255, 193, 7];
+    const LOG_GREEN = [0, 255, 0];
+    const GREEN = [40, 167, 69];
+
+    // --- NEW: Helper function to shuffle an array ---
+    function shuffleArray(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    // --- Game Class ---
+    class Game {
+      constructor() {
+        this.signal_strength = 7;
+        this.chrono = 0;
+        this.lore = 0;
+        
+        this.game_state = 'playing'; // 'playing', 'lore_animation', 'win_animation', 'lose_animation', 'game_over'
+        this.animation_start_time = 0;
+        this.animation_delay = 50;
+        this.animation_step = 0;
+        this.lore_animation_pos = null;
+        
+        this.lore_locations = [];
+        let possible_tiles = [];
+        for (let r = 0; r < GRID_SIZE; r++) {
+          for (let c = 0; c < GRID_SIZE; c++) {
+            if (r !== player_pos[0] || c !== player_pos[1]) {
+              if (r !== exit_pos[0] || c !== exit_pos[1]) {
+                possible_tiles.push([r, c]);
+              }
+            }
+          }
+        }
+        
+        let num_lore = Math.floor(Math.random() * 5); // 0-4
+        this.lore_locations = shuffleArray(possible_tiles).slice(0, num_lore);
+        
+        this.fill_order = [];
+        for (let r = 0; r < GRID_SIZE; r++) {
+          for (let c = 0; c < GRID_SIZE; c++) {
+            this.fill_order.push([r, c]);
+          }
+        }
+        shuffleArray(this.fill_order);
+        
+        this.grid = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(0).map(() => Math.floor(Math.random() * 6) + 3)); // Shields 3-8
+        this.breached = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(false));
+        this.breached[player_pos[0]][player_pos[1]] = true;
+        
+        this.selected_tile = null;
+        this.dice_results = [null, null];
+        this.total_strength = 0;
+        this.rolled = false;
+        this.log = ["Game started. Select an adjacent tile and roll!"];
+      }
+
+      is_adjacent(row, col) {
+        const [pr, pc] = player_pos;
+        return (Math.abs(row - pr) + Math.abs(col - pc) === 1) && !this.breached[row][col];
+      }
+
+      roll_dice() {
+        this.dice_results = [DICE_FACES[Math.floor(Math.random() * DICE_FACES.length)], DICE_FACES[Math.floor(Math.random() * DICE_FACES.length)]];
+        this.total_strength = 0;
+        let glitch_count = 0;
+        let chrono_count = 0;
+        let breach_count = 0;
+
+        for (const die of this.dice_results) {
+          if (['1', '2', '3'].includes(die)) {
+            this.total_strength += parseInt(die);
+          } else if (die === 'BREACH') {
+            breach_count += 1;
+          } else if (die === 'GLITCH') {
+            glitch_count += 1;
+          } else if (die === 'CHRONO') {
+            chrono_count += 1;
+          }
+        }
+
+        this.total_strength += breach_count * 3;
+        this.signal_strength -= glitch_count;
+        this.chrono += chrono_count;
+
+        if (glitch_count > 0) this.log.push(`Glitch! Lost ${glitch_count} health.`);
+        if (chrono_count > 0) this.log.push(`Gained ${chrono_count} Chrono.`);
+
+        this.rolled = true;
+      }
+
+      use_rewind(die_index) {
+        if (this.chrono >= 1 && this.rolled) {
+          this.chrono -= 1;
+          
+          let old_die = this.dice_results[die_index];
+          if (['1', '2', '3'].includes(old_die)) {
+            this.total_strength -= parseInt(old_die);
+          } else if (old_die === 'BREACH') {
+            this.total_strength -= 3;
+          }
+          
+          let new_die = DICE_FACES[Math.floor(Math.random() * DICE_FACES.length)];
+          this.dice_results[die_index] = new_die;
+          
+          if (['1', '2', '3'].includes(new_die)) {
+            this.total_strength += parseInt(new_die);
+          } else if (new_die === 'BREACH') {
+            this.total_strength += 3;
+          } else if (new_die === 'GLITCH') {
+            this.signal_strength -= 1;
+            this.log.push("Rewound into a Glitch! -1 health.");
+          } else if (new_die === 'CHRONO') {
+            this.chrono += 1;
+            this.log.push("Rewound into Chrono! +1 Chrono.");
+          }
+          
+          this.log.push(`RE ROLLED die ${die_index + 1} to ${new_die}.`);
+          return true;
+        }
+        return false;
+      }
+
+      use_overload() {
+        if (this.chrono >= 2 && this.rolled) {
+          this.chrono -= 2;
+          this.total_strength += 1;
+          this.log.push("Overloaded: +1 strength.");
+          return true;
+        }
+        return false;
+      }
+
+      use_skip() {
+        if (this.chrono >= 3 && this.selected_tile) {
+          this.chrono -= 3;
+          const [row, col] = this.selected_tile;
+          this.breached[row][col] = true;
+          
+          if (this.lore_locations.some(loc => loc[0] === row && loc[1] === col)) {
+            this.game_state = 'lore_animation';
+            this.animation_start_time = millis();
+            this.lore_animation_pos = [row, col];
+            this.log.push("LORE FOUND!");
+            this.lore_locations = this.lore_locations.filter(loc => loc[0] !== row || loc[1] !== col);
+          } else {
+            player_pos = [row, col];
+          }
+          
+          this.log.push("Skipped: Auto-breached tile.");
+          this.selected_tile = null;
+          this.rolled = false;
+          return true;
+        }
+        return false;
+      }
+
+      resolve_breach() {
+        if (this.selected_tile && this.rolled) {
+          const [row, col] = this.selected_tile;
+          const shield = this.grid[row][col];
+          if (this.total_strength >= shield) {
+            this.breached[row][col] = true;
+            
+            if (this.lore_locations.some(loc => loc[0] === row && loc[1] === col)) {
+              this.game_state = 'lore_animation';
+              this.animation_start_time = millis();
+              this.lore_animation_pos = [row, col];
+              this.log.push("LORE FOUND!");
+              this.lore_locations = this.lore_locations.filter(loc => loc[0] !== row || loc[1] !== col);
+            } else {
+              player_pos = [row, col];
+            }
+            this.log.push(`Success! Breached shield ${shield} with ${this.total_strength}.`);
+          } else {
+            this.signal_strength -= 1;
+            this.log.push(`Failure. Lost 1 health. Needed ${shield}, had ${this.total_strength}.`);
+          }
+          
+          this.selected_tile = null;
+          this.rolled = false;
+          this.dice_results = [null, null];
+          
+          if (this.game_state === 'playing') {
+            this.check_lose();
+          }
+        }
+      }
+
+      win_game() {
+        player_pos = [...exit_pos];
+        this.game_state = 'win_animation';
+        this.animation_start_time = millis();
+        this.log = ["SIGNAL BREACH SUCCESS!"];
+      }
+
+      check_lose() {
+        if (this.signal_strength <= 0) {
+          this.game_state = 'lose_animation';
+          this.animation_start_time = millis();
+          this.animation_step = 0;
+          this.log = ["GAME OVER!"];
+          return true;
+        }
+        return false;
+      }
+    }
+
+    // --- Button Class ---
+    class Button {
+      constructor(x, y, width, height, text, color, text_color) {
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+        this.text = text;
+        this.color = color;
+        this.base_color = color;
+        this.disabled_color = DARK_GRAY;
+        this.text_color = text_color;
+      }
+      
+      draw(disabled = false) {
+        let current_color = disabled ? this.disabled_color : this.base_color;
+        fill(current_color);
+        noStroke();
+        rect(this.x, this.y, this.width, this.height, 5);
+        
+        let text_color_to_use = (this.text_color === WHITE) ? WHITE : (disabled ? GRAY : this.text_color);
+        fill(text_color_to_use);
+        textFont(pixelFont);
+        textStyle(NORMAL);
+        textAlign(CENTER, CENTER);
+        textSize(16); // Reduced font size for buttons
+        text(this.text, this.x + this.width / 2, this.y + this.height / 2);
+      }
+
+      is_clicked(px, py) {
+        return px > this.x && px < this.x + this.width &&
+               py > this.y && py < this.y + this.height;
+      }
+    }
+    
+    // --- p5.js Main Functions ---
+
+    function preload() {
+      // Load all assets
+      background_image = loadImage("assets/background.png");
+      red_tile_img = loadImage("assets/red_tile.png");
+      purple_tile_img = loadImage("assets/purple_tile.png");
+      player_tile_img = loadImage("assets/player_tile.png");
+      lore_img = loadImage("assets/lore.png");
+      roll_button_img = loadImage("assets/roll.png");
+      roll_pressed_img = loadImage("assets/roll_pressed.png");
+      
+      pixelFont = loadFont("assets/Pixele_Unique.ttf");
+      digitalFont = loadFont("assets/DS-DIGIB.TTF");
+    }
+
+    function setup() {
+      createCanvas(SCREEN_WIDTH, SCREEN_HEIGHT);
+      textFont(pixelFont);
+      game = new Game();
+      
+      // UI Layout Constants
+      const BUTTON_WIDTH = 140;
+      const BUTTON_HEIGHT = 45;
+      const LEFT_COL_X = (GRID_X - BUTTON_WIDTH) / 2;
+      const LEFT_COL_Y_START = 300;
+      const Y_SPACING = 60;
+      const RIGHT_COL_X = GRID_X + GRID_WIDTH_PX + (GRID_X - BUTTON_WIDTH) / 2;
+      
+      // Create Buttons
+      reroll1_button = new Button(LEFT_COL_X, LEFT_COL_Y_START, BUTTON_WIDTH, BUTTON_HEIGHT, "RE ROLL 1 (1C)", YELLOW, WHITE);
+      reroll2_button = new Button(LEFT_COL_X, LEFT_COL_Y_START + Y_SPACING, BUTTON_WIDTH, BUTTON_HEIGHT, "RE ROLL 2 (1C)", YELLOW, WHITE);
+      overload_button = new Button(LEFT_COL_X, LEFT_COL_Y_START + (2 * Y_SPACING), BUTTON_WIDTH, BUTTON_HEIGHT, "OVERLOAD (2C)", YELLOW, WHITE);
+      skip_button = new Button(LEFT_COL_X, LEFT_COL_Y_START + (3 * Y_SPACING), BUTTON_WIDTH, BUTTON_HEIGHT, "SKIP (3C)", YELLOW, WHITE);
+
+      roll_button_rect = { x: RIGHT_COL_X, y: 330, width: 140, height: 50 };
+      resolve_button = new Button(RIGHT_COL_X, 330 + Y_SPACING, BUTTON_WIDTH, BUTTON_HEIGHT, "RESOLVE", GREEN, WHITE);
+    }
+    
+    function draw() {
+      let current_time = millis();
+      
+      // --- Handle Animation Timers ---
+      if (game.game_state === 'lore_animation') {
+        if (current_time - game.animation_start_time > 3000) {
+          game.game_state = 'playing';
+          player_pos = game.lore_animation_pos;
+          game.lore += 1;
+          game.lore_animation_pos = null;
+        }
+      } else if (game.game_state === 'win_animation') {
+        if (current_time - game.animation_start_time > 3000) {
+          game.game_state = 'game_over';
+        }
+      } else if (game.game_state === 'lose_animation') {
+        if (game.animation_step < (GRID_SIZE * GRID_SIZE)) {
+          if (current_time - game.animation_start_time > game.animation_delay) {
+            game.animation_step += 1;
+            game.animation_start_time = current_time;
+          }
+        } else {
+          if (current_time - game.animation_start_time > 2000) {
+            game.game_state = 'game_over';
+          }
+        }
+      }
+      
+      game_over = ['win_animation', 'lose_animation', 'game_over'].includes(game.game_state);
+      
+      image(background_image, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+
+      // --- Draw grid ---
+      for (let row = 0; row < GRID_SIZE; row++) {
+        for (let col = 0; col < GRID_SIZE; col++) {
+          let x = GRID_X + col * TILE_SIZE;
+          let y = GRID_Y + row * TILE_SIZE;
+          
+          if (row === exit_pos[0] && col === exit_pos[1]) {
+            image(red_tile_img, x, y, TILE_SIZE, TILE_SIZE);
+          } else if (row === player_pos[0] && col === player_pos[1]) {
+            image(player_tile_img, x, y, TILE_SIZE, TILE_SIZE);
+          } else if (game.breached[row][col]) {
+            fill(BLACK);
+            noStroke();
+            rect(x, y, TILE_SIZE, TILE_SIZE);
+          } else {
+            image(purple_tile_img, x, y, TILE_SIZE, TILE_SIZE);
+          }
+          
+          if (!game.breached[row][col] && (row !== exit_pos[0] || col !== exit_pos[1])) {
+            textAlign(CENTER, CENTER);
+            textFont(digitalFont);
+            textStyle(NORMAL);
+            textSize(24);
+            fill(WHITE);
+            text(game.grid[row][col], x + TILE_SIZE / 2, y + TILE_SIZE / 2);
+          }
+          
+          stroke(WHITE);
+          strokeWeight(2);
+          noFill();
+          rect(x, y, TILE_SIZE, TILE_SIZE);
+        }
+      }
+      // --- END grid ---
+      
+      // --- Animation Overlay Layer ---
+      if (game.game_state === 'lore_animation') {
+        let flash_on = Math.floor(current_time / 250) % 2 === 0;
+        let x = GRID_X + game.lore_animation_pos[1] * TILE_SIZE;
+        let y = GRID_Y + game.lore_animation_pos[0] * TILE_SIZE;
+        if (flash_on) {
+          image(lore_img, x, y, TILE_SIZE, TILE_SIZE);
+        } else {
+          image(player_tile_img, x, y, TILE_SIZE, TILE_SIZE);
+        }
+      } else if (game.game_state === 'win_animation') {
+        let flash_on = Math.floor(current_time / 250) % 2 === 0;
+        let x = GRID_X + exit_pos[1] * TILE_SIZE;
+        let y = GRID_Y + exit_pos[0] * TILE_SIZE;
+        if (flash_on) {
+          image(player_tile_img, x, y, TILE_SIZE, TILE_SIZE);
+        } else {
+          image(red_tile_img, x, y, TILE_SIZE, TILE_SIZE);
+        }
+      } else if (game.game_state === 'lose_animation') {
+        for (let i = 0; i < game.animation_step; i++) {
+          const [r, c] = game.fill_order[i];
+          let x = GRID_X + c * TILE_SIZE;
+          let y = GRID_Y + r * TILE_SIZE;
+          image(red_tile_img, x, y, TILE_SIZE, TILE_SIZE);
+        }
+        if (game.animation_step >= (GRID_SIZE * GRID_SIZE)) {
+          let flash_on = Math.floor(current_time / 250) % 2 === 0;
+          if (flash_on) {
+            fill(255, 0, 0, 128); // Semi-transparent red
+            noStroke();
+            rect(GRID_X, GRID_Y, GRID_WIDTH_PX, GRID_HEIGHT_PX);
+          }
+        }
+      }
+      // --- END Animation Layer ---
+
+      // Draw selected tile highlight
+      if (game.selected_tile) {
+        const [row, col] = game.selected_tile;
+        let x = GRID_X + col * TILE_SIZE;
+        let y = GRID_Y + row * TILE_SIZE;
+        stroke(YELLOW);
+        strokeWeight(4);
+        noFill();
+        rect(x, y, TILE_SIZE, TILE_SIZE);
+      }
+
+      // --- Draw UI ---
+      const BUTTON_WIDTH = 140;
+      const LEFT_COL_X = (GRID_X - BUTTON_WIDTH) / 2;
+      const RIGHT_COL_X = GRID_X + GRID_WIDTH_PX + (GRID_X - BUTTON_WIDTH) / 2;
+      
+      // --- Signal Strength Bar ---
+      textFont(pixelFont); // Use pixel font for SIGNAL STRENGTH
+      textStyle(NORMAL);
+      textSize(24);
+      fill(BLACK);
+      textAlign(LEFT, TOP);
+      let health_title_x = LEFT_COL_X + 20;
+      text("SIGNAL STRENGTH", health_title_x, 50);
+
+      const SQUARE_SIZE = 15;
+      const PADDING = 5;
+      const MAX_HEALTH = 7;
+      let BAR_START_X = health_title_x;
+      let BAR_START_Y = 50 + 24 + 5;
+      let BAR_HEIGHT = SQUARE_SIZE + (PADDING * 2);
+      let BAR_WIDTH = (MAX_HEALTH * (SQUARE_SIZE + PADDING)) + PADDING;
+
+      fill(BLACK);
+      noStroke();
+      rect(BAR_START_X, BAR_START_Y, BAR_WIDTH, BAR_HEIGHT, 5);
+      
+      fill(RED);
+      for (let i = 0; i < game.signal_strength; i++) {
+        let sq_x = BAR_START_X + PADDING + i * (SQUARE_SIZE + PADDING);
+        let sq_y = BAR_START_Y + PADDING;
+        rect(sq_x, sq_y, SQUARE_SIZE, SQUARE_SIZE);
+      }
+
+      // --- Chrono Box ---
+      textFont(digitalFont); // Use digital font for Chrono
+      textSize(28);
+      fill(WHITE);
+      textAlign(RIGHT, TOP);
+      let chrono_text = `Chrono: ${game.chrono}`;
+      let chrono_width = textWidth(chrono_text);
+      fill(BLACK);
+      rect(RIGHT_COL_X + BUTTON_WIDTH - 30 - chrono_width - 10, 60 - 5, chrono_width + 20, 28 + 10, 5);
+      fill(WHITE);
+      text(chrono_text, RIGHT_COL_X + BUTTON_WIDTH - 30, 60);
+
+      // --- Lore Counter ---
+      textAlign(CENTER, TOP);
+      fill(YELLOW);
+      let lore_text = `Lore: ${game.lore}`;
+      let lore_width = textWidth(lore_text);
+      fill(BLACK);
+      rect(GRID_CENTER_X - (lore_width / 2) - 10, 60 - 5, lore_width + 20, 28 + 10, 5);
+      fill(YELLOW);
+      text(lore_text, GRID_CENTER_X, 60);
+
+      // --- Left Column: Abilities ---
+      reroll1_button.draw(game.chrono < 1 || !game.rolled || game_over);
+      reroll2_button.draw(game.chrono < 1 || !game.rolled || game_over);
+      overload_button.draw(game.chrono < 2 || !game.rolled || game_over);
+      skip_button.draw(game.chrono < 3 || !game.selected_tile || game.rolled || game_over);
+
+      // --- Right Column: Dice & Actions ---
+      fill(BLACK);
+      rect(RIGHT_COL_X - 10, 145, BUTTON_WIDTH + 20, 175, 5);
+      
+      fill(WHITE);
+      textSize(24);
+      textAlign(LEFT, TOP);
+      text("Dice Results", RIGHT_COL_X, 150);
+
+      textSize(18);
+      text("DICE 1", RIGHT_COL_X, 180);
+      text("DICE 2", RIGHT_COL_X, 230);
+      textFont(digitalFont); // Use digital font for dice numbers and strength
+      textSize(28);
+      text(game.dice_results[0] || "--", RIGHT_COL_X + 20, 200);
+      text(game.dice_results[1] || "--", RIGHT_COL_X + 20, 250);
+      text(`Strength: ${game.total_strength}`, RIGHT_COL_X, 280);
+      textFont(pixelFont); // Reset to pixel font
+
+      // Roll/Resolve buttons
+      let roll_disabled = !game.selected_tile || game.rolled || game_over;
+      if (!roll_disabled && roll_button_pressed) {
+        image(roll_pressed_img, roll_button_rect.x, roll_button_rect.y);
+      } else {
+        image(roll_button_img, roll_button_rect.x, roll_button_rect.y);
+      }
+      resolve_button.draw(!game.rolled || game_over);
+
+      // --- Log Box ---
+      let log_y_start = 580;
+      let log_line_height = 22;
+      let num_log_lines = 5;
+      let num_visual_lines = 6;
+      let log_box_width = 500;
+      let log_box_height = (num_visual_lines * log_line_height) + 10;
+      let log_box_x = GRID_CENTER_X - (log_box_width / 2);
+      let log_box_y = log_y_start - 5;
+      fill(BLACK);
+      rect(log_box_x, log_box_y, log_box_width, log_box_height, 5);
+
+      if (game_over) {
+        textSize(48);
+        fill(LOG_GREEN);
+        textAlign(CENTER, TOP);
+        text(game.log[0], GRID_CENTER_X, log_y_start + 30);
+        
+        textSize(18);
+        let restart_y = log_y_start + log_box_height - log_line_height - 5;
+        text("RESTART GAME", GRID_CENTER_X, restart_y);
+        restart_text_rect = {x: GRID_CENTER_X - 70, y: restart_y, width: 140, height: 20}; // Approx for click detection
+      } else {
+        let log_y = log_y_start;
+        textSize(18);
+        fill(LOG_GREEN);
+        textAlign(CENTER, TOP);
+        for (let msg of game.log.slice(-num_log_lines)) {
+          text(msg, GRID_CENTER_X, log_y);
+          log_y += log_line_height;
+        }
+      }
+    }
+
+    function mousePressed() {
+      if (game_over && restart_text_rect && mouseX > restart_text_rect.x && mouseX < restart_text_rect.x + restart_text_rect.width &&
+          mouseY > restart_text_rect.y && mouseY < restart_text_rect.y + restart_text_rect.height) {
+        player_pos = [3, 0];
+        game = new Game();
+        return;
+      }
+
+      if (game.game_state !== 'playing' && game.game_state !== 'game_over') return;
+
+      if (!game_over) {
+        if (mouseX >= GRID_X && mouseX < GRID_X + GRID_WIDTH_PX && mouseY >= GRID_Y && mouseY < GRID_Y + GRID_HEIGHT_PX) {
+          let col = Math.floor((mouseX - GRID_X) / TILE_SIZE);
+          let row = Math.floor((mouseY - GRID_Y) / TILE_SIZE);
+          
+          if (row === exit_pos[0] && col === exit_pos[1]) {
+            let [pr, pc] = player_pos;
+            if (Math.abs(row - pr) + Math.abs(col - pc) === 1) {
+              game.win_game();
+              return;
+            }
+          }
+          
+          if (game.is_adjacent(row, col)) {
+            game.selected_tile = [row, col];
+            game.log.push(`Selected tile (${row}, ${col}) with shield ${game.grid[row][col]}`);
+          }
+        } else {
+          let roll_disabled = !game.selected_tile || game.rolled || game_over;
+          if (!roll_disabled && mouseX > roll_button_rect.x && mouseX < roll_button_rect.x + roll_button_rect.width &&
+              mouseY > roll_button_rect.y && mouseY < roll_button_rect.y + roll_button_rect.height) {
+            roll_button_pressed = true;
+          } else if (game.rolled && resolve_button.is_clicked(mouseX, mouseY)) {
+            game.resolve_breach();
+          } else if (reroll1_button.is_clicked(mouseX, mouseY)) {
+            game.use_rewind(0);
+          } else if (reroll2_button.is_clicked(mouseX, mouseY)) {
+            game.use_rewind(1);
+          } else if (overload_button.is_clicked(mouseX, mouseY)) {
+            game.use_overload();
+          } else if (!game.rolled && skip_button.is_clicked(mouseX, mouseY) && game.selected_tile) {
+            game.use_skip();
+          }
+        }
+      }
+    }
+
+    function mouseReleased() {
+      if (game.game_state === 'playing' && !game_over) {
+        if (roll_button_pressed) {
+          roll_button_pressed = false;
+          if (mouseX > roll_button_rect.x && mouseX < roll_button_rect.x + roll_button_rect.width &&
+              mouseY > roll_button_rect.y && mouseY < roll_button_rect.y + roll_button_rect.height) {
+            game.roll_dice();
+          }
+        }
+      }
+    }
+  </script>
 </body>
 </html>
