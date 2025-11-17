@@ -39,7 +39,7 @@
     // Player and Exit
     let player_pos = [3, 0];
     const exit_pos = [0, 3];
-    const DICE_FACES = ['1', '2', '3', 'GLITCH', 'BREACH', 'CHRONO'];
+    const DICE_FACES = ['1', '2', '3', '4', 'GLITCH', 'BREACH', 'CHRONO'];
    
     // Buttons
     let reroll1_button, reroll2_button, overload_button, skip_button;
@@ -103,7 +103,7 @@
         }
         shuffleArray(this.fill_order);
        
-        this.grid = [[3, 3, 7, 6], [6, 3, 4, 5], [6, 5, 5, 7], [6, 5, 5, 4]];
+        this.grid = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(0).map(() => Math.floor(Math.random() * 6) + 3)); // Shields 3-8
         this.breached = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(false));
         this.breached[player_pos[0]][player_pos[1]] = true;
        
@@ -124,7 +124,7 @@
         let chrono_count = 0;
         let breach_count = 0;
         for (const die of this.dice_results) {
-          if (['1', '2', '3'].includes(die)) {
+          if (['1', '2', '3', '4'].includes(die)) {
             this.total_strength += parseInt(die);
           } else if (die === 'BREACH') {
             breach_count += 1;
@@ -146,7 +146,7 @@
           this.chrono -= 1;
          
           let old_die = this.dice_results[die_index];
-          if (['1', '2', '3'].includes(old_die)) {
+          if (['1', '2', '3', '4'].includes(old_die)) {
             this.total_strength -= parseInt(old_die);
           } else if (old_die === 'BREACH') {
             this.total_strength -= 3;
@@ -155,7 +155,7 @@
           let new_die = DICE_FACES[Math.floor(Math.random() * DICE_FACES.length)];
           this.dice_results[die_index] = new_die;
          
-          if (['1', '2', '3'].includes(new_die)) {
+          if (['1', '2', '3', '4'].includes(new_die)) {
             this.total_strength += parseInt(new_die);
           } else if (new_die === 'BREACH') {
             this.total_strength += 3;
@@ -277,7 +277,7 @@
         textFont(pixelFont);
         textStyle(NORMAL);
         textAlign(CENTER, CENTER);
-        textSize(20); // Reduced font size for buttons
+        textSize(16); // Reduced font size for buttons
         text(this.text, this.x + this.width / 2, this.y + this.height / 2);
       }
       is_clicked(px, py) {
@@ -604,4 +604,3 @@
   </script>
 </body>
 </html>
-
