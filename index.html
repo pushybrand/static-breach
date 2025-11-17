@@ -2,6 +2,7 @@
 <html>
 <head>
   <title>Static Breach</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
   <style>
     html, body {
@@ -9,7 +10,6 @@
       padding: 0;
       width: 100%;
       height: 100vh;
-      overflow: hidden;
       background-color: #000;
       display: flex;
       justify-content: center;
@@ -25,23 +25,22 @@
     // --- GLOBAL VARIABLES ---
     let game;
     let game_over = false;
-    // UI and Layout
-    const SCREEN_WIDTH = 800;
-    const SCREEN_HEIGHT = 800;
+    // UI and Layout (now dynamic)
+    let SCREEN_WIDTH, SCREEN_HEIGHT;
+    let scaleFactor = 1;
+    let translateX = 0;
+    let translateY = 0;
+    const ORIGINAL_SIZE = 800;
     const GRID_SIZE = 4;
-    const TILE_SIZE = 100;
-    const GRID_X = (SCREEN_WIDTH - GRID_SIZE * TILE_SIZE) / 2;
-    const GRID_Y = 120;
-    const GRID_WIDTH_PX = GRID_SIZE * TILE_SIZE;
-    const GRID_HEIGHT_PX = GRID_SIZE * TILE_SIZE;
-    const GRID_CENTER_X = GRID_X + (GRID_WIDTH_PX / 2);
+    let TILE_SIZE = 100; // Will be scaled
+    let GRID_X, GRID_Y, GRID_WIDTH_PX, GRID_HEIGHT_PX, GRID_CENTER_X;
    
     // Player and Exit
     let player_pos = [3, 0];
     const exit_pos = [0, 3];
-    const DICE_FACES = ['1', '2', '3', '4', 'GLITCH', 'BREACH', 'CHRONO'];
+    const DICE_FACES = ['1', '2', '3', 'GLITCH', 'BREACH', 'CHRONO'];
    
-    // Buttons
+    // Buttons (positions will be scaled)
     let reroll1_button, reroll2_button, overload_button, skip_button;
     let roll_button_rect, resolve_button, restart_text_rect;
     let roll_button_pressed = false;
@@ -124,7 +123,7 @@
         let chrono_count = 0;
         let breach_count = 0;
         for (const die of this.dice_results) {
-          if (['1', '2', '3', '4'].includes(die)) {
+          if (['1', '2', '3'].includes(die)) {
             this.total_strength += parseInt(die);
           } else if (die === 'BREACH') {
             breach_count += 1;
@@ -146,7 +145,7 @@
           this.chrono -= 1;
          
           let old_die = this.dice_results[die_index];
-          if (['1', '2', '3', '4'].includes(old_die)) {
+          if (['1', '2', '3'].includes(old_die)) {
             this.total_strength -= parseInt(old_die);
           } else if (old_die === 'BREACH') {
             this.total_strength -= 3;
@@ -155,7 +154,7 @@
           let new_die = DICE_FACES[Math.floor(Math.random() * DICE_FACES.length)];
           this.dice_results[die_index] = new_die;
          
-          if (['1', '2', '3', '4'].includes(new_die)) {
+          if (['1', '2', '3'].includes(new_die)) {
             this.total_strength += parseInt(new_die);
           } else if (new_die === 'BREACH') {
             this.total_strength += 3;
@@ -301,11 +300,28 @@
       digitalFont = loadFont("assets/DS-DIGIB.TTF");
     }
     function setup() {
+      SCREEN_WIDTH = windowWidth;
+      SCREEN_HEIGHT = windowHeight;
       createCanvas(SCREEN_WIDTH, SCREEN_HEIGHT);
+      updateScale();
       textFont(pixelFont);
       game = new Game();
-     
-      // UI Layout Constants
+      updateUILayout();
+    }
+   
+    function updateScale() {
+      scaleFactor = min(windowWidth / ORIGINAL_SIZE, windowHeight / ORIGINAL_SIZE);
+      translateX = (windowWidth - ORIGINAL_SIZE * scaleFactor) / 2;
+      translateY = (windowHeight - ORIGINAL_SIZE * scaleFactor) / 2;
+      TILE_SIZE = 100; // Original, scaled in draw
+      GRID_WIDTH_PX = GRID_SIZE * TILE_SIZE;
+      GRID_HEIGHT_PX = GRID_SIZE * TILE_SIZE;
+    }
+   
+    function updateUILayout() {
+      GRID_X = (ORIGINAL_SIZE - GRID_WIDTH_PX) / 2;
+      GRID_Y = 120;
+      GRID_CENTER_X = GRID_X + (GRID_WIDTH_PX / 2);
       const BUTTON_WIDTH = 140;
       const BUTTON_HEIGHT = 45;
       const LEFT_COL_X = (GRID_X - BUTTON_WIDTH) / 2;
@@ -320,6 +336,14 @@
       skip_button = new Button(LEFT_COL_X, LEFT_COL_Y_START + (3 * Y_SPACING), BUTTON_WIDTH, BUTTON_HEIGHT, "SKIP (3C)", YELLOW, WHITE);
       roll_button_rect = { x: RIGHT_COL_X, y: 330, width: 140, height: 50 };
       resolve_button = new Button(RIGHT_COL_X, 330 + Y_SPACING, BUTTON_WIDTH, BUTTON_HEIGHT, "RESOLVE", GREEN, WHITE);
+    }
+   
+    function windowResized() {
+      SCREEN_WIDTH = windowWidth;
+      SCREEN_HEIGHT = windowHeight;
+      resizeCanvas(SCREEN_WIDTH, SCREEN_HEIGHT);
+      updateScale();
+      updateUILayout();
     }
    
     function draw() {
@@ -352,7 +376,11 @@
      
       game_over = ['win_animation', 'lose_animation', 'game_over'].includes(game.game_state);
      
-      image(background_image, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+      background(0); // Clear canvas
+      push();
+      translate(translateX, translateY);
+      scale(scaleFactor);
+      image(background_image, 0, 0, ORIGINAL_SIZE, ORIGINAL_SIZE);
       // --- Draw grid ---
       for (let row = 0; row < GRID_SIZE; row++) {
         for (let col = 0; col < GRID_SIZE; col++) {
@@ -545,19 +573,29 @@
           log_y += log_line_height;
         }
       }
+      pop();
+    }
+    function getAdjustedMouse() {
+      return {
+        x: (mouseX - translateX) / scaleFactor,
+        y: (mouseY - translateY) / scaleFactor
+      };
     }
     function mousePressed() {
-      if (game_over && restart_text_rect && mouseX > restart_text_rect.x && mouseX < restart_text_rect.x + restart_text_rect.width &&
-          mouseY > restart_text_rect.y && mouseY < restart_text_rect.y + restart_text_rect.height) {
+      let adjMouse = getAdjustedMouse();
+      let adjX = adjMouse.x;
+      let adjY = adjMouse.y;
+      if (game_over && restart_text_rect && adjX > restart_text_rect.x && adjX < restart_text_rect.x + restart_text_rect.width &&
+          adjY > restart_text_rect.y && adjY < restart_text_rect.y + restart_text_rect.height) {
         player_pos = [3, 0];
         game = new Game();
         return;
       }
       if (game.game_state !== 'playing' && game.game_state !== 'game_over') return;
       if (!game_over) {
-        if (mouseX >= GRID_X && mouseX < GRID_X + GRID_WIDTH_PX && mouseY >= GRID_Y && mouseY < GRID_Y + GRID_HEIGHT_PX) {
-          let col = Math.floor((mouseX - GRID_X) / TILE_SIZE);
-          let row = Math.floor((mouseY - GRID_Y) / TILE_SIZE);
+        if (adjX >= GRID_X && adjX < GRID_X + GRID_WIDTH_PX && adjY >= GRID_Y && adjY < GRID_Y + GRID_HEIGHT_PX) {
+          let col = Math.floor((adjX - GRID_X) / TILE_SIZE);
+          let row = Math.floor((adjY - GRID_Y) / TILE_SIZE);
          
           if (row === exit_pos[0] && col === exit_pos[1]) {
             let [pr, pc] = player_pos;
@@ -573,29 +611,32 @@
           }
         } else {
           let roll_disabled = !game.selected_tile || game.rolled || game_over;
-          if (!roll_disabled && mouseX > roll_button_rect.x && mouseX < roll_button_rect.x + roll_button_rect.width &&
-              mouseY > roll_button_rect.y && mouseY < roll_button_rect.y + roll_button_rect.height) {
+          if (!roll_disabled && adjX > roll_button_rect.x && adjX < roll_button_rect.x + roll_button_rect.width &&
+              adjY > roll_button_rect.y && adjY < roll_button_rect.y + roll_button_rect.height) {
             roll_button_pressed = true;
-          } else if (game.rolled && resolve_button.is_clicked(mouseX, mouseY)) {
+          } else if (game.rolled && resolve_button.is_clicked(adjX, adjY)) {
             game.resolve_breach();
-          } else if (reroll1_button.is_clicked(mouseX, mouseY)) {
+          } else if (reroll1_button.is_clicked(adjX, adjY)) {
             game.use_rewind(0);
-          } else if (reroll2_button.is_clicked(mouseX, mouseY)) {
+          } else if (reroll2_button.is_clicked(adjX, adjY)) {
             game.use_rewind(1);
-          } else if (overload_button.is_clicked(mouseX, mouseY)) {
+          } else if (overload_button.is_clicked(adjX, adjY)) {
             game.use_overload();
-          } else if (!game.rolled && skip_button.is_clicked(mouseX, mouseY) && game.selected_tile) {
+          } else if (!game.rolled && skip_button.is_clicked(adjX, adjY) && game.selected_tile) {
             game.use_skip();
           }
         }
       }
     }
     function mouseReleased() {
+      let adjMouse = getAdjustedMouse();
+      let adjX = adjMouse.x;
+      let adjY = adjMouse.y;
       if (game.game_state === 'playing' && !game_over) {
         if (roll_button_pressed) {
           roll_button_pressed = false;
-          if (mouseX > roll_button_rect.x && mouseX < roll_button_rect.x + roll_button_rect.width &&
-              mouseY > roll_button_rect.y && mouseY < roll_button_rect.y + roll_button_rect.height) {
+          if (adjX > roll_button_rect.x && adjX < roll_button_rect.x + roll_button_rect.width &&
+              adjY > roll_button_rect.y && adjY < roll_button_rect.y + roll_button_rect.height) {
             game.roll_dice();
           }
         }
