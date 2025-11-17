@@ -50,7 +50,7 @@
     // Assets
     let background_image, red_tile_img, purple_tile_img, player_tile_img;
     let lore_img, roll_button_img, roll_pressed_img;
-    let pixelFont, numberFontSmall, numberFontMedium, numberFontLarge;
+    let pixelFont, digitalFont;
     
     // Colors
     const BLACK = [0, 0, 0];
@@ -294,7 +294,7 @@
         textFont(pixelFont);
         textStyle(NORMAL);
         textAlign(CENTER, CENTER);
-        textSize(20); // Reduced font size for buttons
+        textSize(16); // Reduced font size for buttons
         text(this.text, this.x + this.width / 2, this.y + this.height / 2);
       }
 
@@ -317,6 +317,7 @@
       roll_pressed_img = loadImage("assets/roll_pressed.png");
       
       pixelFont = loadFont("assets/Pixele_Unique.ttf");
+      digitalFont = loadFont("assets/DS-DIGIB.TTF");
     }
 
     function setup() {
@@ -394,9 +395,11 @@
           
           if (!game.breached[row][col] && (row !== exit_pos[0] || col !== exit_pos[1])) {
             textAlign(CENTER, CENTER);
-            textFont('Courier New'); // Changed to a digital-style font (monospace, bold)
-            textStyle(NORMAL); // Changed to normal (not bold)
-            textSize(24); // Slightly larger for readability
+            textFont(digitalFont);
+            textStyle(NORMAL);
+            textSize(24);
+            fill(BLACK);
+            text(game.grid[row][col], x + TILE_SIZE / 2 + 1, y + TILE_SIZE / 2 + 1);
             fill(WHITE);
             text(game.grid[row][col], x + TILE_SIZE / 2, y + TILE_SIZE / 2);
           }
@@ -491,7 +494,7 @@
       }
 
       // --- Chrono Box ---
-      textFont(pixelFont); // Use pixel font for Chrono
+      textFont(digitalFont); // Use digital font for Chrono
       textSize(28);
       fill(WHITE);
       textAlign(RIGHT, TOP);
@@ -530,10 +533,12 @@
       textSize(18);
       text("DICE 1", RIGHT_COL_X, 180);
       text("DICE 2", RIGHT_COL_X, 230);
+      textFont(digitalFont); // Use digital font for dice numbers and strength
       textSize(28);
       text(game.dice_results[0] || "--", RIGHT_COL_X + 20, 200);
       text(game.dice_results[1] || "--", RIGHT_COL_X + 20, 250);
       text(`Strength: ${game.total_strength}`, RIGHT_COL_X, 280);
+      textFont(pixelFont); // Reset to pixel font
 
       // Roll/Resolve buttons
       let roll_disabled = !game.selected_tile || game.rolled || game_over;
@@ -639,6 +644,3 @@
   </script>
 </body>
 </html>
-
-
-
