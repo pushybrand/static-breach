@@ -33,7 +33,7 @@
     const GRID_SIZE = 4;
     let TILE_SIZE;
     let GRID_X, GRID_Y, GRID_WIDTH_PX, GRID_HEIGHT_PX, GRID_CENTER_X;
-    let baseButtonWidth, baseButtonHeight, baseYSpacing;
+    let baseButtonWidth, baseButtonHeight, baseYSpacing, baseFontSize; // Added baseFontSize
    
     // Player and Exit
     let player_pos = [3, 0];
@@ -276,7 +276,8 @@
         textFont(pixelFont);
         textStyle(NORMAL);
         textAlign(CENTER, CENTER);
-        textSize(16 * scaleFactor); // Scaled font size
+        // Use the global baseFontSize here
+        textSize(baseFontSize * scaleFactor); 
         text(this.text, this.x + this.width / 2, this.y + this.height / 2);
       }
       is_clicked(px, py) {
@@ -303,11 +304,25 @@
       SCREEN_WIDTH = windowWidth;
       SCREEN_HEIGHT = windowHeight;
       createCanvas(SCREEN_WIDTH, SCREEN_HEIGHT);
+      
       let isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-      ORIGINAL_SIZE = isMobile ? 800 : 400; // Smaller ORIGINAL_SIZE for larger scaling on desktop
-      baseButtonWidth = isMobile ? 140 : 180; // Larger buttons on desktop
-      baseButtonHeight = isMobile ? 45 : 55;
-      baseYSpacing = isMobile ? 60 : 70;
+      
+      ORIGINAL_SIZE = isMobile ? 800 : 400; 
+      
+      // --- UPDATED BUTTON SIZING LOGIC ---
+      if (isMobile) {
+        baseButtonWidth = 140;
+        baseButtonHeight = 45;
+        baseYSpacing = 60;
+        baseFontSize = 16;
+      } else {
+        // Desktop Settings (Much Bigger)
+        baseButtonWidth = 250; 
+        baseButtonHeight = 75;
+        baseYSpacing = 95;
+        baseFontSize = 24; // Bigger text for desktop
+      }
+
       updateScale();
       textFont(pixelFont);
       game = new Game();
@@ -337,7 +352,9 @@
       reroll2_button = new Button(LEFT_COL_X, LEFT_COL_Y_START + Y_SPACING, BUTTON_WIDTH, BUTTON_HEIGHT, "RE ROLL 2 (1C)", YELLOW, WHITE);
       overload_button = new Button(LEFT_COL_X, LEFT_COL_Y_START + (2 * Y_SPACING), BUTTON_WIDTH, BUTTON_HEIGHT, "OVERLOAD (2C)", YELLOW, WHITE);
       skip_button = new Button(LEFT_COL_X, LEFT_COL_Y_START + (3 * Y_SPACING), BUTTON_WIDTH, BUTTON_HEIGHT, "SKIP (3C)", YELLOW, WHITE);
-      roll_button_rect = { x: RIGHT_COL_X, y: 330 * scaleFactor, width: baseButtonWidth * scaleFactor, height: 50 * scaleFactor };
+      
+      // Updated roll_button_rect to use BUTTON_HEIGHT instead of hardcoded 50
+      roll_button_rect = { x: RIGHT_COL_X, y: 330 * scaleFactor, width: baseButtonWidth * scaleFactor, height: baseButtonHeight * scaleFactor };
       resolve_button = new Button(RIGHT_COL_X, 330 * scaleFactor + Y_SPACING, BUTTON_WIDTH, BUTTON_HEIGHT, "RESOLVE", GREEN, WHITE);
     }
    
