@@ -33,7 +33,7 @@
     const GRID_SIZE = 4;
     let TILE_SIZE;
     let GRID_X, GRID_Y, GRID_WIDTH_PX, GRID_HEIGHT_PX, GRID_CENTER_X;
-    let baseButtonWidth, baseButtonHeight, baseYSpacing, baseFontSize; // Added baseFontSize
+    let baseButtonWidth, baseButtonHeight, baseYSpacing, baseFontSize;
    
     // Player and Exit
     let player_pos = [3, 0];
@@ -276,7 +276,6 @@
         textFont(pixelFont);
         textStyle(NORMAL);
         textAlign(CENTER, CENTER);
-        // Use the global baseFontSize here
         textSize(baseFontSize * scaleFactor); 
         text(this.text, this.x + this.width / 2, this.y + this.height / 2);
       }
@@ -307,20 +306,23 @@
       
       let isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
       
-      ORIGINAL_SIZE = isMobile ? 800 : 400; 
-      
-      // --- UPDATED BUTTON SIZING LOGIC ---
+      // --- SIZE CONFIGURATION ---
       if (isMobile) {
+        ORIGINAL_SIZE = 800;
         baseButtonWidth = 140;
         baseButtonHeight = 45;
         baseYSpacing = 60;
         baseFontSize = 16;
       } else {
-        // Desktop Settings (Much Bigger)
-        baseButtonWidth = 250; 
-        baseButtonHeight = 75;
-        baseYSpacing = 95;
-        baseFontSize = 24; // Bigger text for desktop
+        // DESKTOP SETTINGS - INCREASED SIZES
+        // Decreasing ORIGINAL_SIZE acts as a "Zoom In" for the whole grid
+        ORIGINAL_SIZE = 550; 
+        
+        // Button dimensions
+        baseButtonWidth = 320; 
+        baseButtonHeight = 90;
+        baseYSpacing = 110;
+        baseFontSize = 32; 
       }
 
       updateScale();
@@ -338,7 +340,8 @@
    
     function updateUILayout() {
       GRID_X = (windowWidth - GRID_WIDTH_PX) / 2;
-      GRID_Y = 120 * scaleFactor;
+      // Moved Grid UP slightly to accommodate larger size
+      GRID_Y = 100 * scaleFactor; 
       GRID_CENTER_X = windowWidth / 2;
       const BUTTON_WIDTH = baseButtonWidth * scaleFactor;
       const BUTTON_HEIGHT = baseButtonHeight * scaleFactor;
@@ -353,7 +356,6 @@
       overload_button = new Button(LEFT_COL_X, LEFT_COL_Y_START + (2 * Y_SPACING), BUTTON_WIDTH, BUTTON_HEIGHT, "OVERLOAD (2C)", YELLOW, WHITE);
       skip_button = new Button(LEFT_COL_X, LEFT_COL_Y_START + (3 * Y_SPACING), BUTTON_WIDTH, BUTTON_HEIGHT, "SKIP (3C)", YELLOW, WHITE);
       
-      // Updated roll_button_rect to use BUTTON_HEIGHT instead of hardcoded 50
       roll_button_rect = { x: RIGHT_COL_X, y: 330 * scaleFactor, width: baseButtonWidth * scaleFactor, height: baseButtonHeight * scaleFactor };
       resolve_button = new Button(RIGHT_COL_X, 330 * scaleFactor + Y_SPACING, BUTTON_WIDTH, BUTTON_HEIGHT, "RESOLVE", GREEN, WHITE);
     }
