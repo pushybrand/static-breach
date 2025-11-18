@@ -29,7 +29,7 @@
     // UI and Layout (now dynamic)
     let SCREEN_WIDTH, SCREEN_HEIGHT;
     let scaleFactor = 1;
-    const ORIGINAL_SIZE = 800;
+    let ORIGINAL_SIZE;
     const GRID_SIZE = 4;
     let TILE_SIZE;
     let GRID_X, GRID_Y, GRID_WIDTH_PX, GRID_HEIGHT_PX, GRID_CENTER_X;
@@ -302,6 +302,8 @@
       SCREEN_WIDTH = windowWidth;
       SCREEN_HEIGHT = windowHeight;
       createCanvas(SCREEN_WIDTH, SCREEN_HEIGHT);
+      let isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      ORIGINAL_SIZE = isMobile ? 800 : 600; // Larger on desktop
       updateScale();
       textFont(pixelFont);
       game = new Game();
