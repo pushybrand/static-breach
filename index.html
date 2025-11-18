@@ -303,7 +303,7 @@
       SCREEN_HEIGHT = windowHeight;
       createCanvas(SCREEN_WIDTH, SCREEN_HEIGHT);
       let isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-      ORIGINAL_SIZE = isMobile ? 800 : 600; // Larger on desktop
+      ORIGINAL_SIZE = isMobile ? 800 : 500; // Increased scaling on desktop
       updateScale();
       textFont(pixelFont);
       game = new Game();
