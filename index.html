@@ -269,14 +269,14 @@
         let current_color = disabled ? this.disabled_color : this.base_color;
         fill(current_color);
         noStroke();
-        rect(this.x, this.y, this.width, this.height, 5);
+        rect(this.x, this.y, this.width, this.height, 5 * scaleFactor);
        
         let text_color_to_use = (this.text_color === WHITE) ? WHITE : (disabled ? GRAY : this.text_color);
         fill(text_color_to_use);
         textFont(pixelFont);
         textStyle(NORMAL);
         textAlign(CENTER, CENTER);
-        textSize(16); // Reduced font size for buttons
+        textSize(16 * scaleFactor); // Scaled font size
         text(this.text, this.x + this.width / 2, this.y + this.height / 2);
       }
       is_clicked(px, py) {
@@ -313,23 +313,23 @@
       scaleFactor = min(windowWidth / ORIGINAL_SIZE, windowHeight / ORIGINAL_SIZE);
       translateX = (windowWidth - ORIGINAL_SIZE * scaleFactor) / 2;
       translateY = (windowHeight - ORIGINAL_SIZE * scaleFactor) / 2;
-      TILE_SIZE = 100; // Original, scaled in draw
+      TILE_SIZE = 100 * scaleFactor; // Scale tile size
       GRID_WIDTH_PX = GRID_SIZE * TILE_SIZE;
       GRID_HEIGHT_PX = GRID_SIZE * TILE_SIZE;
     }
    
     function updateUILayout() {
-      GRID_X = (ORIGINAL_SIZE - GRID_WIDTH_PX) / 2;
+      GRID_X = (ORIGINAL_SIZE - GRID_WIDTH_PX / scaleFactor) / 2; // Adjust for original coords
       GRID_Y = 120;
-      GRID_CENTER_X = GRID_X + (GRID_WIDTH_PX / 2);
+      GRID_CENTER_X = GRID_X + (GRID_WIDTH_PX / scaleFactor / 2);
       const BUTTON_WIDTH = 140;
       const BUTTON_HEIGHT = 45;
       const LEFT_COL_X = (GRID_X - BUTTON_WIDTH) / 2;
       const LEFT_COL_Y_START = 300;
       const Y_SPACING = 60;
-      const RIGHT_COL_X = GRID_X + GRID_WIDTH_PX + (GRID_X - BUTTON_WIDTH) / 2;
+      const RIGHT_COL_X = GRID_X + (GRID_WIDTH_PX / scaleFactor) + (GRID_X - BUTTON_WIDTH) / 2;
      
-      // Create Buttons
+      // Create Buttons with original coords (scaled in draw)
       reroll1_button = new Button(LEFT_COL_X, LEFT_COL_Y_START, BUTTON_WIDTH, BUTTON_HEIGHT, "RE ROLL 1 (1C)", YELLOW, WHITE);
       reroll2_button = new Button(LEFT_COL_X, LEFT_COL_Y_START + Y_SPACING, BUTTON_WIDTH, BUTTON_HEIGHT, "RE ROLL 2 (1C)", YELLOW, WHITE);
       overload_button = new Button(LEFT_COL_X, LEFT_COL_Y_START + (2 * Y_SPACING), BUTTON_WIDTH, BUTTON_HEIGHT, "OVERLOAD (2C)", YELLOW, WHITE);
@@ -384,19 +384,19 @@
       // --- Draw grid ---
       for (let row = 0; row < GRID_SIZE; row++) {
         for (let col = 0; col < GRID_SIZE; col++) {
-          let x = GRID_X + col * TILE_SIZE;
-          let y = GRID_Y + row * TILE_SIZE;
+          let x = GRID_X + col * (TILE_SIZE / scaleFactor); // Adjust for scale
+          let y = GRID_Y + row * (TILE_SIZE / scaleFactor);
          
           if (row === exit_pos[0] && col === exit_pos[1]) {
-            image(red_tile_img, x, y, TILE_SIZE, TILE_SIZE);
+            image(red_tile_img, x, y, TILE_SIZE / scaleFactor, TILE_SIZE / scaleFactor);
           } else if (row === player_pos[0] && col === player_pos[1]) {
-            image(player_tile_img, x, y, TILE_SIZE, TILE_SIZE);
+            image(player_tile_img, x, y, TILE_SIZE / scaleFactor, TILE_SIZE / scaleFactor);
           } else if (game.breached[row][col]) {
             fill(BLACK);
             noStroke();
-            rect(x, y, TILE_SIZE, TILE_SIZE);
+            rect(x, y, TILE_SIZE / scaleFactor, TILE_SIZE / scaleFactor);
           } else {
-            image(purple_tile_img, x, y, TILE_SIZE, TILE_SIZE);
+            image(purple_tile_img, x, y, TILE_SIZE / scaleFactor, TILE_SIZE / scaleFactor);
           }
          
           if (!game.breached[row][col] && (row !== exit_pos[0] || col !== exit_pos[1])) {
@@ -405,13 +405,13 @@
             textStyle(NORMAL);
             textSize(24);
             fill(WHITE);
-            text(game.grid[row][col], x + TILE_SIZE / 2, y + TILE_SIZE / 2);
+            text(game.grid[row][col], x + (TILE_SIZE / scaleFactor) / 2, y + (TILE_SIZE / scaleFactor) / 2);
           }
          
           stroke(WHITE);
           strokeWeight(2);
           noFill();
-          rect(x, y, TILE_SIZE, TILE_SIZE);
+          rect(x, y, TILE_SIZE / scaleFactor, TILE_SIZE / scaleFactor);
         }
       }
       // --- END grid ---
@@ -419,35 +419,35 @@
       // --- Animation Overlay Layer ---
       if (game.game_state === 'lore_animation') {
         let flash_on = Math.floor(current_time / 250) % 2 === 0;
-        let x = GRID_X + game.lore_animation_pos[1] * TILE_SIZE;
-        let y = GRID_Y + game.lore_animation_pos[0] * TILE_SIZE;
+        let x = GRID_X + game.lore_animation_pos[1] * (TILE_SIZE / scaleFactor);
+        let y = GRID_Y + game.lore_animation_pos[0] * (TILE_SIZE / scaleFactor);
         if (flash_on) {
-          image(lore_img, x, y, TILE_SIZE, TILE_SIZE);
+          image(lore_img, x, y, TILE_SIZE / scaleFactor, TILE_SIZE / scaleFactor);
         } else {
-          image(player_tile_img, x, y, TILE_SIZE, TILE_SIZE);
+          image(player_tile_img, x, y, TILE_SIZE / scaleFactor, TILE_SIZE / scaleFactor);
         }
       } else if (game.game_state === 'win_animation') {
         let flash_on = Math.floor(current_time / 250) % 2 === 0;
-        let x = GRID_X + exit_pos[1] * TILE_SIZE;
-        let y = GRID_Y + exit_pos[0] * TILE_SIZE;
+        let x = GRID_X + exit_pos[1] * (TILE_SIZE / scaleFactor);
+        let y = GRID_Y + exit_pos[0] * (TILE_SIZE / scaleFactor);
         if (flash_on) {
-          image(player_tile_img, x, y, TILE_SIZE, TILE_SIZE);
+          image(player_tile_img, x, y, TILE_SIZE / scaleFactor, TILE_SIZE / scaleFactor);
         } else {
-          image(red_tile_img, x, y, TILE_SIZE, TILE_SIZE);
+          image(red_tile_img, x, y, TILE_SIZE / scaleFactor, TILE_SIZE / scaleFactor);
         }
       } else if (game.game_state === 'lose_animation') {
         for (let i = 0; i < game.animation_step; i++) {
           const [r, c] = game.fill_order[i];
-          let x = GRID_X + c * TILE_SIZE;
-          let y = GRID_Y + r * TILE_SIZE;
-          image(red_tile_img, x, y, TILE_SIZE, TILE_SIZE);
+          let x = GRID_X + c * (TILE_SIZE / scaleFactor);
+          let y = GRID_Y + r * (TILE_SIZE / scaleFactor);
+          image(red_tile_img, x, y, TILE_SIZE / scaleFactor, TILE_SIZE / scaleFactor);
         }
         if (game.animation_step >= (GRID_SIZE * GRID_SIZE)) {
           let flash_on = Math.floor(current_time / 250) % 2 === 0;
           if (flash_on) {
             fill(255, 0, 0, 128); // Semi-transparent red
             noStroke();
-            rect(GRID_X, GRID_Y, GRID_WIDTH_PX, GRID_HEIGHT_PX);
+            rect(GRID_X, GRID_Y, GRID_WIDTH_PX / scaleFactor, GRID_HEIGHT_PX / scaleFactor);
           }
         }
       }
@@ -455,17 +455,17 @@
       // Draw selected tile highlight
       if (game.selected_tile) {
         const [row, col] = game.selected_tile;
-        let x = GRID_X + col * TILE_SIZE;
-        let y = GRID_Y + row * TILE_SIZE;
+        let x = GRID_X + col * (TILE_SIZE / scaleFactor);
+        let y = GRID_Y + row * (TILE_SIZE / scaleFactor);
         stroke(YELLOW);
         strokeWeight(4);
         noFill();
-        rect(x, y, TILE_SIZE, TILE_SIZE);
+        rect(x, y, TILE_SIZE / scaleFactor, TILE_SIZE / scaleFactor);
       }
       // --- Draw UI ---
       const BUTTON_WIDTH = 140;
       const LEFT_COL_X = (GRID_X - BUTTON_WIDTH) / 2;
-      const RIGHT_COL_X = GRID_X + GRID_WIDTH_PX + (GRID_X - BUTTON_WIDTH) / 2;
+      const RIGHT_COL_X = GRID_X + (GRID_WIDTH_PX / scaleFactor) + (GRID_X - BUTTON_WIDTH) / 2;
      
       // --- Signal Strength Bar ---
       textFont(pixelFont); // Use pixel font for SIGNAL STRENGTH
@@ -481,7 +481,7 @@
       let BAR_START_X = health_title_x;
       let BAR_START_Y = 50 + 24 + 5;
       let BAR_HEIGHT = SQUARE_SIZE + (PADDING * 2);
-      let BAR_WIDTH = (MAX_HEALTH * (SQUARE_SIZE + PADDING)) + PADDING;
+      let BAR_WIDTH = (MAX_HEALTH * (SQUARE_SIZE + PADDING) ) + PADDING;
       fill(BLACK);
       noStroke();
       rect(BAR_START_X, BAR_START_Y, BAR_WIDTH, BAR_HEIGHT, 5);
@@ -537,9 +537,9 @@
       // Roll/Resolve buttons
       let roll_disabled = !game.selected_tile || game.rolled || game_over;
       if (!roll_disabled && roll_button_pressed) {
-        image(roll_pressed_img, roll_button_rect.x, roll_button_rect.y);
+        image(roll_pressed_img, roll_button_rect.x, roll_button_rect.y, roll_button_rect.width, roll_button_rect.height);
       } else {
-        image(roll_button_img, roll_button_rect.x, roll_button_rect.y);
+        image(roll_button_img, roll_button_rect.x, roll_button_rect.y, roll_button_rect.width, roll_button_rect.height);
       }
       resolve_button.draw(!game.rolled || game_over);
       // --- Log Box ---
@@ -593,9 +593,9 @@
       }
       if (game.game_state !== 'playing' && game.game_state !== 'game_over') return;
       if (!game_over) {
-        if (adjX >= GRID_X && adjX < GRID_X + GRID_WIDTH_PX && adjY >= GRID_Y && adjY < GRID_Y + GRID_HEIGHT_PX) {
-          let col = Math.floor((adjX - GRID_X) / TILE_SIZE);
-          let row = Math.floor((adjY - GRID_Y) / TILE_SIZE);
+        if (adjX >= GRID_X && adjX < GRID_X + (GRID_WIDTH_PX / scaleFactor) && adjY >= GRID_Y && adjY < GRID_Y + (GRID_HEIGHT_PX / scaleFactor)) {
+          let col = Math.floor((adjX - GRID_X) / (TILE_SIZE / scaleFactor));
+          let row = Math.floor((adjY - GRID_Y) / (TILE_SIZE / scaleFactor));
          
           if (row === exit_pos[0] && col === exit_pos[1]) {
             let [pr, pc] = player_pos;
